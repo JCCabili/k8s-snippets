@@ -1,0 +1,82 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pgadmin-pv-volume
+  labels:
+    type: local
+    app: pgadmin
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/Users/cabilijc/Documents/k8s-snippets/data/pgadmin" # modify path
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pgadmin-pv-claim
+  labels:
+    app: pgadmin
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: pgadmin
+  name: pgadmin
+  namespace: default
+spec:
+  ports:
+  - name: padmin-port
+    nodePort: 30165
+    port: 80
+    targetPort: 80
+  selector:
+    app: pgadmin
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      containers:
+      - env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: cabilijc@gmail.com
+        - name: PGADMIN_DEFAULT_PASSWORD
+          value: password
+        - name: PGADMIN_PORT
+          value: "80"
+        image: dpage/pgadmin4:latest
+        imagePullPolicy: IfNotPresent
+        name: pgadmin
+        ports:
+        - containerPort: 80
+        volumeMounts:
+            - mountPath: /var/lib/pgadmin
+              name: pgadmindb
+      volumes:
+        - name: pgadmindb
+          persistentVolumeClaim:
+            claimName: pgadmin-pv-claim
